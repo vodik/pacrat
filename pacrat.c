@@ -19,6 +19,12 @@
 	#define PACMAN_DBPATH "/var/lib/pacman"
 #endif
 
+typedef enum __operation_t {
+	OP_LIST = 1,
+	OP_PULL = (1 << 1),
+	OP_PUSH = (1 << 2)
+} operation_t;
+
 static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const char *path, const char *);
@@ -29,7 +35,7 @@ static int parse_options(int, char*[]);
 
 /* runtime configuration */
 static struct {
-	int opmask;
+	operation_t opmask;
 } cfg;
 
 alpm_handle_t *pmhandle;
@@ -139,13 +145,19 @@ int parse_options(int argc, char *argv[]) /* {{{ */
 
 	static const struct option opts[] = {
 		/* operations */
+		{"list", no_argument, 0, 'l'},
 
 		/* options */
 		{0, 0, 0, 0}
 	};
 
-	while((opt = getopt_long(argc, argv, "", opts, &option_index)) != -1) {
+	while((opt = getopt_long(argc, argv, "l", opts, &option_index)) != -1) {
 		switch(opt) {
+			case 'l':
+				cfg.opmask |= OP_LIST;
+				break;
+			default:
+				return 1;
 		}
 	}
 	return 0;
@@ -158,8 +170,8 @@ int main(int argc, char *argv[])
 
 	setlocale(LC_ALL, "");
 
-	ret = 0;
-	/* ret = parse_options(argc, argv); */
+	if ((ret = parse_options(argc, argv)) != 0)
+		return ret;
 
 	pmhandle = alpm_initialize(PACMAN_ROOT, PACMAN_DBPATH, &err);
 	if(!pmhandle) {
