@@ -19,7 +19,8 @@
 	#define PACMAN_DBPATH "/var/lib/pacman"
 #endif
 
-static void archive(const char *path, const char *pkgname);
+static void copy(const char *, const char *);
+static void archive(const char *, const char *);
 static int is_modified(const char *, const alpm_backup_t *);
 static void alpm_do_backup(alpm_pkg_t *pkg);
 static void alpm_find_backups(void);
