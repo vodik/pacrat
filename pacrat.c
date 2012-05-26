@@ -1,8 +1,11 @@
 #define _GNU_SOURCE
 #include <stdlib.h>
-#include <getopt.h>
-#include <locale.h>
 #include <stdio.h>
+#include <string.h>
+#include <limits.h>
+#include <unistd.h>
+#include <locale.h>
+#include <getopt.h>
 
 #include <alpm.h>
 
@@ -24,6 +27,27 @@ static struct {
 
 alpm_handle_t *pmhandle;
 
+int backup_status(const char *root, const alpm_backup_t *backup)
+{
+	char path[PATH_MAX];
+	int ret = 0;
+
+	snprintf(path, PATH_MAX, "%s%s", root, backup->name);
+
+	if(access(path, R_OK) == 0) {
+		char *md5sum = alpm_compute_md5sum(path);
+
+		if(!md5sum) {
+			perror("alpm_compute_md5sum");
+			return 0;
+		}
+
+		ret = strcmp(md5sum, backup->hash) != 0;
+		free(md5sum);
+	}
+	return ret;
+}
+
 void alpm_find_backups(void) /* {{{ */
 {
 	alpm_db_t *db;
@@ -34,7 +58,8 @@ void alpm_find_backups(void) /* {{{ */
 		const char *pkgname = alpm_pkg_get_name(i->data);
 		for (j = alpm_pkg_get_backup(i->data); j; j = alpm_list_next(j)) {/* {{{ *//* }}} */
 			const alpm_backup_t *backup = j->data;
-			printf("%s: %s\n", pkgname, backup->name);
+			if (backup_status(PACMAN_ROOT, backup))
+				printf("%s: %s\n", pkgname, backup->name);
 		}
 	}
 } /* }}} */
