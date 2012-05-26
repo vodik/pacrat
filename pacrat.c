@@ -20,9 +20,10 @@
 #endif
 
 static void copy(const char *, const char *);
-static void archive(const char *path, const char *pkgname);
+static void mkpath(const char *, mode_t);
+static void archive(const char *path, const char *);
 static int is_modified(const char *, const alpm_backup_t *);
-static void alpm_do_backup(alpm_pkg_t *pkg);
+static void alpm_do_backup(alpm_pkg_t *);
 static void alpm_find_backups(void);
 static int parse_options(int, char*[]);
 
@@ -71,9 +72,8 @@ void archive(const char *path, const char *pkgname) /* {{{ */
 {
 	char dest[PATH_MAX];
 	char *p = NULL;
-	size_t len;
 
-	len = snprintf(dest, PATH_MAX, "%s%s", pkgname, path);
+	snprintf(dest, PATH_MAX, "%s%s", pkgname, path);
 	printf("%s\n", dest);
 
 	for(p = dest + 1; *p; p++) {
