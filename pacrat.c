@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <locale.h>
 #include <getopt.h>
+#include <sys/stat.h>
 
 #include <alpm.h>
 
@@ -17,7 +19,9 @@
 	#define PACMAN_DBPATH "/var/lib/pacman"
 #endif
 
+static void archive(const char *path, const char *pkgname);
 static int is_modified(const char *, const alpm_backup_t *);
+static void alpm_do_backup(alpm_pkg_t *pkg);
 static void alpm_find_backups(void);
 static int parse_options(int, char*[]);
 
@@ -28,19 +32,50 @@ static struct {
 
 alpm_handle_t *pmhandle;
 
-int is_modified(const char *root, const alpm_backup_t *backup) /* {{{ */
+void copy(const char *src, const char *dest) /* {{{ */
 {
-	char path[PATH_MAX];
-	int ret = 0;
+	int in  = open(src, O_RDONLY);
+	int out = open(dest, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	char buf[8192];
 
-	snprintf(path, PATH_MAX, "%s%s", root, backup->name);
+	ssize_t ret;
+	while ((ret = read(in, buf, sizeof(buf))) > 0) {
+		if(write(out, buf, (size_t)ret) != ret) {
+			perror("write");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	close(in);
+	close(out);
+} /* }}} */
+
+void archive(const char *path, const char *pkgname) /* {{{ */
+{
+	struct stat st;
+	char dest[PATH_MAX];
+
+	if(stat(pkgname, &st) != 0)
+		mkdir(pkgname, 0777);
+	else if(!S_ISDIR(st.st_mode)) {
+		perror("stat");
+		exit(EXIT_FAILURE);
+	}
+
+	snprintf(dest, PATH_MAX, "%s/%s", pkgname, "foo.txt");
+	copy(path, dest);
+} /* }}} */
+
+int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
+{
+	int ret = 0;
 
 	if(access(path, R_OK) == 0) {
 		char *md5sum = alpm_compute_md5sum(path);
 
 		if(!md5sum) {
 			perror("alpm_compute_md5sum");
-			return 0;
+			exit(EXIT_FAILURE);
 		}
 
 		ret = strcmp(md5sum, backup->hash) != 0;
@@ -49,20 +84,32 @@ int is_modified(const char *root, const alpm_backup_t *backup) /* {{{ */
 	return ret;
 } /* }}} */
 
+void alpm_do_backup(alpm_pkg_t *pkg) /* {{{ */
+{
+	const char *pkgname = alpm_pkg_get_name(pkg);
+	const alpm_list_t *i;
+	char path[PATH_MAX];
+
+	for (i = alpm_pkg_get_backup(pkg); i; i = alpm_list_next(i)) {
+		const alpm_backup_t *backup = i->data;
+
+		snprintf(path, PATH_MAX, "%s%s", PACMAN_ROOT, backup->name);
+		if (is_modified(path, backup) == 0)
+			continue;
+
+		printf("%s: %s\n", pkgname, path);
+		archive(path, pkgname);
+	}
+} /* }}} */
+
 void alpm_find_backups(void) /* {{{ */
 {
 	alpm_db_t *db;
-	const alpm_list_t *i, *j;
+	const alpm_list_t *i;
 
 	db = alpm_get_localdb(pmhandle);
-	for (i = alpm_db_get_pkgcache(db); i; i = alpm_list_next(i)) {
-		const char *pkgname = alpm_pkg_get_name(i->data);
-		for (j = alpm_pkg_get_backup(i->data); j; j = alpm_list_next(j)) {/* {{{ *//* }}} */
-			const alpm_backup_t *backup = j->data;
-			if (is_modified(PACMAN_ROOT, backup))
-				printf("%s: %s\n", pkgname, backup->name);
-		}
-	}
+	for (i = alpm_db_get_pkgcache(db); i; i = alpm_list_next(i))
+		alpm_do_backup(i->data);
 } /* }}} */
 
 int parse_options(int argc, char *argv[]) /* {{{ */
