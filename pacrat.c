@@ -8,6 +8,7 @@
 #include <locale.h>
 #include <getopt.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 #include <alpm.h>
 
