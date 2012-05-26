@@ -1,4 +1,31 @@
-#include "pacrat.h"
+#define _GNU_SOURCE
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <limits.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <locale.h>
+#include <getopt.h>
+#include <sys/stat.h>
+
+#include <alpm.h>
+
+#ifndef PACMAN_ROOT
+	#define PACMAN_ROOT "/"
+#endif
+
+#ifndef PACMAN_DB
+	#define PACMAN_DBPATH "/var/lib/pacman"
+#endif
+
+static void copy(const char *, const char *);
+static void archive(const char *path, const char *pkgname);
+static int is_modified(const char *, const alpm_backup_t *);
+static void alpm_do_backup(alpm_pkg_t *pkg);
+static void alpm_find_backups(void);
+static int parse_options(int, char*[]);
+
 /* runtime configuration */
 static struct {
 	int opmask;
@@ -24,19 +51,39 @@ void copy(const char *src, const char *dest) /* {{{ */
 	close(out);
 } /* }}} */
 
-void archive(const char *path, const char *pkgname) /* {{{ */
+void mkpath(const char *path, mode_t mode) /* {{{ */
 {
 	struct stat st;
-	char dest[PATH_MAX];
 
-	if(stat(pkgname, &st) != 0)
-		mkdir(pkgname, 0777);
+	if(stat(path, &st) != 0) {
+		if(mkdir(path, mode) != 0) {
+			perror("mkdir");
+			exit(EXIT_FAILURE);
+		}
+	}
 	else if(!S_ISDIR(st.st_mode)) {
 		perror("stat");
 		exit(EXIT_FAILURE);
 	}
+} /* }}} */
 
-	snprintf(dest, PATH_MAX, "%s/%s", pkgname, strrchr(path,'/'));
+void archive(const char *path, const char *pkgname) /* {{{ */
+{
+	char dest[PATH_MAX];
+	char *p = NULL;
+	size_t len;
+
+	len = snprintf(dest, PATH_MAX, "%s%s", pkgname, path);
+	printf("%s\n", dest);
+
+	for(p = dest + 1; *p; p++) {
+		if(*p == '/') {
+			*p = '\0';
+			mkpath(dest, 0777);
+			*p = '/';
+		}
+	}
+
 	copy(path, dest);
 } /* }}} */
 
