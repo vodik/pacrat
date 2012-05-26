@@ -1,0 +1,4 @@
+*.o
+.*.swp
+pacrat
+pacrat.1
