@@ -17,6 +17,7 @@
 	#define PACMAN_DBPATH "/var/lib/pacman"
 #endif
 
+static int is_modified(const char *, const alpm_backup_t *);
 static void alpm_find_backups(void);
 static int parse_options(int, char*[]);
 
@@ -27,7 +28,7 @@ static struct {
 
 alpm_handle_t *pmhandle;
 
-int backup_status(const char *root, const alpm_backup_t *backup)
+int is_modified(const char *root, const alpm_backup_t *backup) /* {{{ */
 {
 	char path[PATH_MAX];
 	int ret = 0;
@@ -46,7 +47,7 @@ int backup_status(const char *root, const alpm_backup_t *backup)
 		free(md5sum);
 	}
 	return ret;
-}
+} /* }}} */
 
 void alpm_find_backups(void) /* {{{ */
 {
@@ -58,7 +59,7 @@ void alpm_find_backups(void) /* {{{ */
 		const char *pkgname = alpm_pkg_get_name(i->data);
 		for (j = alpm_pkg_get_backup(i->data); j; j = alpm_list_next(j)) {/* {{{ *//* }}} */
 			const alpm_backup_t *backup = j->data;
-			if (backup_status(PACMAN_ROOT, backup))
+			if (is_modified(PACMAN_ROOT, backup))
 				printf("%s: %s\n", pkgname, backup->name);
 		}
 	}
