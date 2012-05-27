@@ -164,8 +164,11 @@ int cwr_vfprintf(FILE *stream, loglevel_t level, const char *format, va_list arg
 
 void copy(const char *src, const char *dest) /* {{{ */
 {
+	struct stat st;
+	stat(src, &st);
+
 	int in  = open(src, O_RDONLY);
-	int out = open(dest, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	int out = open(dest, O_WRONLY | O_CREAT | O_TRUNC, st.st_mode);
 	char buf[8192];
 
 	ssize_t ret;
@@ -216,18 +219,16 @@ void archive(const backup_t *backup) /* {{{ */
 int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
 {
 	int ret = 0;
+	char *md5sum = alpm_compute_md5sum(path);
 
-	if(access(path, R_OK) == 0) {
-		char *md5sum = alpm_compute_md5sum(path);
-
-		if(!md5sum) {
-			perror("alpm_compute_md5sum");
-			exit(EXIT_FAILURE);
-		}
-
-		ret = strcmp(md5sum, backup->hash) != 0;
-		free(md5sum);
+	if(!md5sum) {
+		perror("alpm_compute_md5sum");
+		exit(EXIT_FAILURE);
 	}
+
+	ret = strcmp(md5sum, backup->hash) != 0;
+	free(md5sum);
+
 	return ret;
 } /* }}} */
 
@@ -243,6 +244,13 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 		const alpm_backup_t *backup = i->data;
 
 		snprintf(path, PATH_MAX, "%s%s", PACMAN_ROOT, backup->name);
+
+		/* check if we can access the file */
+		if (access(path, R_OK) != 0) {
+			cwr_fprintf(stderr, LOG_WARN, "can't access %s\n", path);
+			continue;
+		}
+
 		if (!everything && is_modified(path, backup) == 0)
 			continue;
 		else {
@@ -378,7 +386,8 @@ int strings_init(void) /* {{{ */
 
 void print_backup(backup_t *b) /* {{{ */
 {
-	printf("%s %s%s%s %s\n", colstr->info, colstr->pkg, b->pkgname, colstr->nc, b->path);
+	/* printf("%s %s%s%s %s\n", colstr->info, colstr->pkg, b->pkgname, colstr->nc, b->path); */
+	printf("%s%s%s %s\n", colstr->pkg, b->pkgname, colstr->nc, b->path);
 } /* }}} */
 
 void usage(void) /* {{{ */
@@ -424,6 +433,8 @@ int main(int argc, char *argv[])
 
 	setlocale(LC_ALL, "");
 
+	cfg.logmask = LOG_ERROR | LOG_WARN | LOG_INFO;
+
 	if ((ret = parse_options(argc, argv)) != 0)
 		return ret;
 
@@ -451,6 +462,8 @@ int main(int argc, char *argv[])
 		alpm_list_free_inner(backups, free_backup);
 		alpm_list_free(backups);
 	}
+
+	printf("%d: %d\n", getuid(), geteuid());
 
 finish:
 	alpm_release(pmhandle);
