@@ -83,7 +83,8 @@ static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const backup_t *);
 static int is_modified(const char *, const alpm_backup_t *);
-static alpm_list_t *alpm_find_backups(int);
+static alpm_list_t *alpm_find_backups(alpm_pkg_t *, int);
+static alpm_list_t *alpm_all_backups(int);
 static alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir);
 static int parse_options(int, char*[]);
 static int strings_init(void);
@@ -229,34 +230,44 @@ int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
 	return ret;
 } /* }}} */
 
-alpm_list_t *alpm_find_backups(int everything) /* {{{ */
+alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
+{
+	const alpm_list_t *i;
+	char path[PATH_MAX];
+	alpm_list_t *backups = NULL;
+
+	const char *pkgname = alpm_pkg_get_name(pkg);
+
+	for (i = alpm_pkg_get_backup(pkg); i; i = alpm_list_next(i)) {
+		const alpm_backup_t *backup = i->data;
+
+		snprintf(path, PATH_MAX, "%s%s", PACMAN_ROOT, backup->name);
+		if (!everything && is_modified(path, backup) == 0)
+			continue;
+		else {
+			backup_t *b = malloc(sizeof(backup_t));
+			b->pkgname = pkgname;
+			b->path = strdup(path);
+			b->hash = backup->hash;
+
+			cwr_fprintf(stderr, LOG_DEBUG, "found backup: %s\n", path);
+			backups = alpm_list_add(backups, b);
+		}
+	}
+
+	return backups;
+} /* }}} */
+
+alpm_list_t *alpm_all_backups(int everything) /* {{{ */
 {
 	alpm_db_t *db;
-	const alpm_list_t *i, *j;
-	char path[PATH_MAX];
+	const alpm_list_t *i;
 	alpm_list_t *backups = NULL;
 
 	db = alpm_get_localdb(pmhandle);
 	for (i = alpm_db_get_pkgcache(db); i; i = alpm_list_next(i)) {
-		alpm_pkg_t *pkg = i->data;
-		const char *pkgname = alpm_pkg_get_name(pkg);
-
-		for (j = alpm_pkg_get_backup(pkg); j; j = alpm_list_next(j)) {
-			const alpm_backup_t *backup = j->data;
-
-			snprintf(path, PATH_MAX, "%s%s", PACMAN_ROOT, backup->name);
-			if (!everything && is_modified(path, backup) == 0)
-				continue;
-			else {
-				backup_t *b = malloc(sizeof(backup_t));
-				b->pkgname = pkgname;
-				b->path = strdup(path);
-				b->hash = backup->hash;
-
-				cwr_fprintf(stderr, LOG_DEBUG, "found backup: %s\n", path);
-				backups = alpm_list_add(backups, b);
-			}
-		}
+		alpm_list_t *pkg_backups = alpm_find_backups(i->data, everything);
+		backups = alpm_list_join(backups, pkg_backups);
 	}
 
 	return backups;
@@ -423,11 +434,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (cfg.opmask & OP_LIST) {
-		alpm_list_t *backups = alpm_find_backups(cfg.all), *i;
+		alpm_list_t *backups = alpm_all_backups(cfg.all), *i;
 		for (i = backups; i; i = alpm_list_next(i))
 			print_backup(i->data);
 	} else {
-		alpm_list_t *backups = alpm_find_backups(cfg.all), *i;
+		alpm_list_t *backups = alpm_all_backups(cfg.all), *i;
 		for (i = backups; i; i = alpm_list_next(i))
 			archive(i->data);
 	}
