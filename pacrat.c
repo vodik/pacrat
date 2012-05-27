@@ -83,7 +83,7 @@ static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const backup_t *);
 static int is_modified(const char *, const alpm_backup_t *);
-static alpm_list_t *alpm_find_backups(void);
+static alpm_list_t *alpm_find_backups(int);
 static alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir);
 static int parse_options(int, char*[]);
 static int strings_init(void);
@@ -97,6 +97,7 @@ static struct {
 	loglevel_t logmask;
 
 	short color;
+	int all : 1;
 } cfg;
 
 alpm_handle_t *pmhandle;
@@ -228,7 +229,7 @@ int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
 	return ret;
 } /* }}} */
 
-alpm_list_t *alpm_find_backups(void) /* {{{ */
+alpm_list_t *alpm_find_backups(int everything) /* {{{ */
 {
 	alpm_db_t *db;
 	const alpm_list_t *i, *j;
@@ -244,7 +245,7 @@ alpm_list_t *alpm_find_backups(void) /* {{{ */
 			const alpm_backup_t *backup = j->data;
 
 			snprintf(path, PATH_MAX, "%s%s", PACMAN_ROOT, backup->name);
-			if (is_modified(path, backup) == 0)
+			if (!everything && is_modified(path, backup) == 0)
 				continue;
 			else {
 				backup_t *b = malloc(sizeof(backup_t));
@@ -252,7 +253,7 @@ alpm_list_t *alpm_find_backups(void) /* {{{ */
 				b->path = strdup(path);
 				b->hash = backup->hash;
 
-				cwr_fprintf(stderr, LOG_DEBUG, "adding file: %s\n", path);
+				cwr_fprintf(stderr, LOG_DEBUG, "found backup: %s\n", path);
 				backups = alpm_list_add(backups, b);
 			}
 		}
@@ -261,21 +262,24 @@ alpm_list_t *alpm_find_backups(void) /* {{{ */
 	return backups;
 } /* }}} */
 
-alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir){ /* {{{ */
-    alpm_filelist_t  *packagelist = alpm_pkg_get_files(pkg);
-    char fileloc[PATH_MAX];
+alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir) /* {{{ */
+{
+	alpm_filelist_t  *packagelist = alpm_pkg_get_files(pkg);
+	char fileloc[PATH_MAX];
 	struct stat buf;
-    unsigned int i,status;
-    alpm_list_t *files = NULL;
-	for (i = 0; i < packagelist->count; i++) { 
-        snprintf(fileloc, PATH_MAX, "%s/%s/%s", dir, alpm_pkg_get_name(pkg), packagelist->files[i].name);
-		status = stat (fileloc, &buf);	
-		if (status == 0 && S_ISREG (buf.st_mode)){ 
+	size_t i, status;
+	alpm_list_t *files = NULL;
+
+	for (i = 0; i < packagelist->count; i++) {
+		snprintf(fileloc, PATH_MAX, "%s/%s/%s", dir, alpm_pkg_get_name(pkg), packagelist->files[i].name);
+		status = stat(fileloc, &buf);
+		if (status == 0 && S_ISREG (buf.st_mode)){
 			files = alpm_list_add(files, fileloc);
+			cwr_fprintf(stderr, LOG_DEBUG, "adding file: %s\n", fileloc);
 			printf("%s\n", fileloc);
 		}
-    }
-    return files;
+	}
+	return files;
 } /* }}} */
 
 int parse_options(int argc, char *argv[]) /* {{{ */
@@ -287,6 +291,7 @@ int parse_options(int argc, char *argv[]) /* {{{ */
 		{"list",    no_argument,       0, 'l'},
 
 		/* options */
+		{"all",     no_argument,       0, 'a'},
 		{"color",   optional_argument, 0, 'c'},
 		{"debug",   no_argument,       0, OP_DEBUG},
 		{"help",    no_argument,       0, 'h'},
@@ -295,8 +300,11 @@ int parse_options(int argc, char *argv[]) /* {{{ */
 		{0, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "lc:hvV", opts, &option_index)) != -1) {
+	while ((opt = getopt_long(argc, argv, "lac:hvV", opts, &option_index)) != -1) {
 		switch(opt) {
+			case 'a':
+				cfg.all |= 1;
+				break;
 			case 'l':
 				cfg.opmask |= OP_LIST;
 				break;
@@ -415,11 +423,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (cfg.opmask & OP_LIST) {
-		alpm_list_t *backups = alpm_find_backups(), *i;
+		alpm_list_t *backups = alpm_find_backups(cfg.all), *i;
 		for (i = backups; i; i = alpm_list_next(i))
 			print_backup(i->data);
 	} else {
-		alpm_list_t *backups = alpm_find_backups(), *i;
+		alpm_list_t *backups = alpm_find_backups(cfg.all), *i;
 		for (i = backups; i; i = alpm_list_next(i))
 			archive(i->data);
 	}
