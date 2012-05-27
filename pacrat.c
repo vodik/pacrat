@@ -84,9 +84,7 @@ void archive(const backup_t *backup) /* {{{ */
 {
 	char dest[PATH_MAX];
 	char *p = NULL;
-
 	snprintf(dest, PATH_MAX, "%s%s", backup->pkgname, backup->path);
-	printf("%s\n", dest);
 
 	for(p = dest + 1; *p; p++) {
 		if(*p == '/') {
@@ -140,7 +138,6 @@ alpm_list_t *alpm_find_backups(void) /* {{{ */
 				b->pkgname = pkgname;
 				b->path = strdup(path);
 				b->hash = backup->hash;
-				printf("backup: %s\n", pkgname);
 				backups = alpm_list_add(backups, b);
 			}
 		}
@@ -189,12 +186,16 @@ int main(int argc, char *argv[])
 		goto finish;
 	}
 
-	alpm_list_t *backups = alpm_find_backups(), *i;
-	for (i = backups; i; i = alpm_list_next(i)) {
-		const backup_t *b = i->data;
-
-		printf("pkg: %s\n", b->pkgname);
-		archive(b);
+	if(cfg.opmask & OP_LIST) {
+		alpm_list_t *backups = alpm_find_backups(), *i;
+		for (i = backups; i; i = alpm_list_next(i)) {
+			const backup_t *b = i->data;
+			printf(":: %s %s\n", b->pkgname, b->path);
+		}
+	} else {
+		alpm_list_t *backups = alpm_find_backups(), *i;
+		for (i = backups; i; i = alpm_list_next(i))
+			archive(i->data);
 	}
 
 finish:
