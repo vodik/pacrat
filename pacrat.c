@@ -201,15 +201,26 @@ void mkpath(const char *path, mode_t mode) /* {{{ */
 
 void archive(const backup_t *backup) /* {{{ */
 {
+	struct stat st;
 	char dest[PATH_MAX];
-	char *p = NULL;
+	char *ptr, *root;
 	snprintf(dest, PATH_MAX, "%s%s", backup->pkgname, backup->path);
 
-	for (p = dest + 1; *p; p++) {
-		if (*p == '/') {
-			*p = '\0';
-			mkpath(dest, 0777);
-			*p = '/';
+	root = dest + strlen(backup->pkgname);
+
+	for (ptr = dest + 1; *ptr; ptr++) {
+		if (*ptr == '/') {
+			*ptr = '\0';
+
+			int mode;
+			if (ptr > root) {
+				if (stat(root, &st) != 0)
+					perror("stat");
+				mode = st.st_mode;
+			} else mode = 0777;
+			mkpath(dest, mode);
+
+			*ptr = '/';
 		}
 	}
 
@@ -462,8 +473,6 @@ int main(int argc, char *argv[])
 		alpm_list_free_inner(backups, free_backup);
 		alpm_list_free(backups);
 	}
-
-	printf("%d: %d\n", getuid(), geteuid());
 
 finish:
 	alpm_release(pmhandle);
