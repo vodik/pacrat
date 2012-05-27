@@ -275,14 +275,12 @@ alpm_list_t *alpm_all_backups(int everything) /* {{{ */
 
 alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir) /* {{{ */
 {
-	alpm_filelist_t  *packagelist = alpm_pkg_get_files(pkg);
 	char fileloc[PATH_MAX];
 	struct stat buf;
-	size_t i, status;
-	alpm_list_t *files = NULL;
-
-	for (i = 0; i < packagelist->count; i++) {
-		snprintf(fileloc, PATH_MAX, "%s/%s/%s", dir, alpm_pkg_get_name(pkg), packagelist->files[i].name);
+	size_t status;
+	alpm_list_t *files = NULL, *i;
+	for (i = alpm_find_backups(pkg,1); i; alpm_list_next(i)) {
+		snprintf(fileloc, PATH_MAX, "%s/%s/%s", dir, alpm_pkg_get_name(pkg), (char *)i);
 		status = stat(fileloc, &buf);
 		if (status == 0 && S_ISREG (buf.st_mode)){
 			files = alpm_list_add(files, fileloc);
