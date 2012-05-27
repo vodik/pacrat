@@ -64,7 +64,7 @@ enum {
 
 typedef struct __backup_t {
 	const char *pkgname;
-	const char *path;
+	char *path;
 	const char *hash;
 } backup_t;
 
@@ -91,6 +91,7 @@ static int strings_init(void);
 static void print_backup(backup_t *);
 static void usage(void);
 static void version(void);
+static void free_backup(void *);
 
 /* runtime configuration */
 static struct {
@@ -232,9 +233,9 @@ int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
 
 alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 {
+	alpm_list_t *backups = NULL;
 	const alpm_list_t *i;
 	char path[PATH_MAX];
-	alpm_list_t *backups = NULL;
 
 	const char *pkgname = alpm_pkg_get_name(pkg);
 
@@ -260,11 +261,11 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 
 alpm_list_t *alpm_all_backups(int everything) /* {{{ */
 {
-	alpm_db_t *db;
-	const alpm_list_t *i;
 	alpm_list_t *backups = NULL;
+	const alpm_list_t *i;
 
-	db = alpm_get_localdb(pmhandle);
+	alpm_db_t *db = alpm_get_localdb(pmhandle);
+
 	for (i = alpm_db_get_pkgcache(db); i; i = alpm_list_next(i)) {
 		alpm_list_t *pkg_backups = alpm_find_backups(i->data, everything);
 		backups = alpm_list_join(backups, pkg_backups);
@@ -410,6 +411,12 @@ void version(void) /* {{{ */
 		   "             Pacrat....\n\n");
 } /* }}} */
 
+void free_backup(void *ptr) { /* {{{ */
+	backup_t *backup = ptr;
+	free(backup->path);
+	free(backup);
+} /* }}} */
+
 int main(int argc, char *argv[])
 {
 	int ret;
@@ -420,14 +427,14 @@ int main(int argc, char *argv[])
 	if ((ret = parse_options(argc, argv)) != 0)
 		return ret;
 
-	cwr_printf(LOG_DEBUG, "initializing alpm\n");
+	cwr_fprintf(stderr, LOG_DEBUG, "initializing alpm\n");
 	pmhandle = alpm_initialize(PACMAN_ROOT, PACMAN_DBPATH, &err);
 	if (!pmhandle) {
 		cwr_fprintf(stderr, LOG_ERROR, "failed to initialize alpm library\n");
 		goto finish;
 	}
 
-	if((ret = strings_init()) != 0) {
+	if ((ret = strings_init()) != 0) {
 		return ret;
 	}
 
@@ -435,10 +442,14 @@ int main(int argc, char *argv[])
 		alpm_list_t *backups = alpm_all_backups(cfg.all), *i;
 		for (i = backups; i; i = alpm_list_next(i))
 			print_backup(i->data);
+		alpm_list_free_inner(backups, free_backup);
+		alpm_list_free(backups);
 	} else {
 		alpm_list_t *backups = alpm_all_backups(cfg.all), *i;
 		for (i = backups; i; i = alpm_list_next(i))
 			archive(i->data);
+		alpm_list_free_inner(backups, free_backup);
+		alpm_list_free(backups);
 	}
 
 finish:

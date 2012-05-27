@@ -11,7 +11,7 @@ PREFIX ?= /usr/local
 MANPREFIX ?= ${PREFIX}/share/man
 
 CPPFLAGS := -DPACRAT_VERSION=\"${VERSION}\" ${CPPFLAGS}
-CFLAGS := -std=c99 -g -pedantic -Wall -Wextra ${CFLAGS}
+CFLAGS := -std=c99 -g -pedantic -Wall -Wextra ${CFLAGS} -g
 LDFLAGS := -lcurl -lalpm ${LDFLAGS}
 
 all: ${OUT} doc
