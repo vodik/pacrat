@@ -136,16 +136,13 @@ int cwr_vfprintf(FILE *stream, loglevel_t level, const char *format, va_list arg
 	switch (level) {
 		case LOG_VERBOSE:
 		case LOG_INFO:
-			/* prefix = colstr->info; */
-			prefix = MAGENTA;
+			prefix = colstr->info;
 			break;
 		case LOG_ERROR:
-			/* prefix = colstr->error; */
-			prefix = BLUE;
+			prefix = colstr->error;
 			break;
 		case LOG_WARN:
-			/* prefix = colstr->warn; */
-			prefix = GREEN;
+			prefix = colstr->warn;
 			break;
 		case LOG_DEBUG:
 			prefix = "debug:";
