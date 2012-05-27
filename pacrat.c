@@ -83,6 +83,7 @@ static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const backup_t *);
 static int is_modified(const char *, const alpm_backup_t *);
+static int check_pacnew(const char *);
 static alpm_list_t *alpm_find_backups(alpm_pkg_t *, int);
 static alpm_list_t *alpm_all_backups(int);
 static alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir);
@@ -245,6 +246,14 @@ int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
 	return ret;
 } /* }}} */
 
+int check_pacnew(const char *file) /* {{{ */
+{
+	char path[PATH_MAX];
+
+	snprintf(path, PATH_MAX, "%s.pacnew", file);
+	return access(path, R_OK) == 0;
+} /* }}} */
+
 alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 {
 	alpm_list_t *backups = NULL;
@@ -263,6 +272,10 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 			cwr_fprintf(stderr, LOG_WARN, "can't access %s\n", path);
 			continue;
 		}
+
+		/* check if there is a pacnew file */
+		if (check_pacnew(path))
+			cwr_fprintf(stderr, LOG_WARN, "pacnew file detected %s\n", path);
 
 		if (!everything && is_modified(path, backup) == 0)
 			continue;
