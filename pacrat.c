@@ -288,9 +288,8 @@ alpm_list_t *alpm_all_backups(int everything) /* {{{ */
 	alpm_db_t *db = alpm_get_localdb(pmhandle);
 
 	if (cfg.targets) {
-		for (i = cfg.targets; i; i = alpm_list_next(i)) {
-			alpm_pkg_t *pkg = alpm_db_get_pkg(db, i->data);
-			alpm_list_t *pkg_backups = alpm_find_backups(pkg, everything);
+		for (i = alpm_db_search(db, cfg.targets); i; i = alpm_list_next(i)) {
+			alpm_list_t *pkg_backups = alpm_find_backups(i->data, everything);
 			backups = alpm_list_join(backups, pkg_backups);
 		}
 	} else {
