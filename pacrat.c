@@ -212,12 +212,12 @@ void archive(const backup_t *backup) /* {{{ */
 		if (*ptr == '/') {
 			*ptr = '\0';
 
-			int mode;
+			int mode = 0777;
 			if (ptr > root) {
 				if (stat(root, &st) != 0)
 					perror("stat");
 				mode = st.st_mode;
-			} else mode = 0777;
+			}
 			mkpath(dest, mode);
 
 			*ptr = '/';
