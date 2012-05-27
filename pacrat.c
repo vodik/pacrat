@@ -58,6 +58,10 @@ typedef enum __operation_t {
 	OP_PUSH = (1 << 2)
 } operation_t;
 
+enum {
+	OP_DEBUG = 1000
+};
+
 typedef struct __backup_t {
 	const char *pkgname;
 	const char *path;
@@ -72,8 +76,9 @@ typedef struct __strings_t {
 	const char *nc;
 } strings_t;
 
-static int cwr_printf(loglevel_t, const char*, ...) __attribute__((format(printf,2,3)));
-static int cwr_vfprintf(FILE*, loglevel_t, const char*, va_list) __attribute__((format(printf,3,0)));
+static int cwr_fprintf(FILE *, loglevel_t, const char *, ...) __attribute__((format(printf,3,4)));
+static int cwr_printf(loglevel_t, const char *, ...) __attribute__((format(printf,2,3)));
+static int cwr_vfprintf(FILE *, loglevel_t, const char *, va_list) __attribute__((format(printf,3,0)));
 static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const backup_t *);
@@ -95,6 +100,18 @@ static struct {
 
 alpm_handle_t *pmhandle;
 strings_t *colstr;
+
+int cwr_fprintf(FILE *stream, loglevel_t level, const char *format, ...) /* {{{ */
+{
+	int ret;
+	va_list args;
+
+	va_start(args, format);
+	ret = cwr_vfprintf(stream, level, format, args);
+	va_end(args);
+
+	return ret;
+} /* }}} */
 
 int cwr_printf(loglevel_t level, const char *format, ...) /* {{{ */
 {
@@ -236,6 +253,8 @@ alpm_list_t *alpm_find_backups(void) /* {{{ */
 				b->pkgname = pkgname;
 				b->path = strdup(path);
 				b->hash = backup->hash;
+
+				cwr_fprintf(stderr, LOG_DEBUG, "adding file: %s\n", path);
 				backups = alpm_list_add(backups, b);
 			}
 		}
@@ -254,6 +273,7 @@ int parse_options(int argc, char *argv[]) /* {{{ */
 
 		/* options */
 		{"color",   optional_argument, 0, 'c'},
+		{"debug",   no_argument,       0, OP_DEBUG},
 		{"help",    no_argument,       0, 'h'},
 		{"verbose", no_argument,       0, 'v'},
 		{"version", no_argument,       0, 'V'},
@@ -290,6 +310,9 @@ int parse_options(int argc, char *argv[]) /* {{{ */
 			case 'V':
 				version();
 				return 2;
+			case OP_DEBUG:
+				cfg.logmask |= LOG_DEBUG;
+				break;
 			default:
 				return 1;
 		}
@@ -344,8 +367,7 @@ void usage(void) /* {{{ */
 
 void version(void) /* {{{ */
 {
-	/* printf("\n " PACRAT_VERSION "\n"); */
-	printf("\n  development\n");
+	printf("\n " PACRAT_VERSION "\n");
 	printf("     \\   (\\,/)\n"
 		   "      \\  oo   '''//,        _\n"
 		   "       ,/_;~,       \\,     / '\n"
@@ -366,9 +388,10 @@ int main(int argc, char *argv[])
 	if ((ret = parse_options(argc, argv)) != 0)
 		return ret;
 
+	cwr_printf(LOG_DEBUG, "initializing alpm\n");
 	pmhandle = alpm_initialize(PACMAN_ROOT, PACMAN_DBPATH, &err);
 	if (!pmhandle) {
-		fprintf(stderr, "failed to initialize alpm: %s\n", alpm_strerror(err));
+		cwr_fprintf(stderr, LOG_ERROR, "failed to initialize alpm library\n");
 		goto finish;
 	}
 
