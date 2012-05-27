@@ -28,14 +28,14 @@ typedef enum __operation_t {
 
 typedef struct __backup_t {
 	const char *pkgname;
-	const alpm_backup_t *data;
+	const char *path;
+	const char *hash;
 } backup_t;
 
 static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
-static void archive(const char *path, const char *);
+static void archive(const backup_t *);
 static int is_modified(const char *, const alpm_backup_t *);
-static void alpm_do_backup(backup_t *);
 static alpm_list_t *alpm_find_backups(void);
 static int parse_options(int, char*[]);
 
@@ -80,12 +80,12 @@ void mkpath(const char *path, mode_t mode) /* {{{ */
 	}
 } /* }}} */
 
-void archive(const char *path, const char *pkgname) /* {{{ */
+void archive(const backup_t *backup) /* {{{ */
 {
 	char dest[PATH_MAX];
 	char *p = NULL;
 
-	snprintf(dest, PATH_MAX, "%s%s", pkgname, path);
+	snprintf(dest, PATH_MAX, "%s%s", backup->pkgname, backup->path);
 	printf("%s\n", dest);
 
 	for(p = dest + 1; *p; p++) {
@@ -96,7 +96,7 @@ void archive(const char *path, const char *pkgname) /* {{{ */
 		}
 	}
 
-	copy(path, dest);
+	copy(backup->path, dest);
 } /* }}} */
 
 int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
@@ -115,16 +115,6 @@ int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
 		free(md5sum);
 	}
 	return ret;
-} /* }}} */
-
-void alpm_do_backup(const backup_t *b) /* {{{ */
-{
-	const alpm_backup_t *backup = b->data;
-	char path[PATH_MAX];
-
-	snprintf(path, PATH_MAX, "%s%s", PACMAN_ROOT, backup->name);
-	printf("%s: %s\n", b->pkgname, path);
-	archive(path, b->pkgname);
 } /* }}} */
 
 alpm_list_t *alpm_find_backups(void) /* {{{ */
@@ -148,7 +138,8 @@ alpm_list_t *alpm_find_backups(void) /* {{{ */
 			else {
 				backup_t *b = malloc(sizeof(backup_t));
 				b->pkgname = pkgname;
-				b->data = backup;
+				b->path = strdup(path);
+				b->hash = backup->hash;
 				printf("backup: %s\n", pkgname);
 				backups = alpm_list_add(backups, b);
 			}
@@ -203,7 +194,7 @@ int main(int argc, char *argv[])
 		const backup_t *b = i->data;
 
 		printf("pkg: %s\n", b->pkgname);
-		alpm_do_backup(b);
+		archive(b);
 	}
 
 finish:
