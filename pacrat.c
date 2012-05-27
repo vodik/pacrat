@@ -26,12 +26,17 @@ typedef enum __operation_t {
 	OP_PUSH = (1 << 2)
 } operation_t;
 
+typedef struct __backup_t {
+	const char *pkgname;
+	const alpm_backup_t *data;
+} backup_t;
+
 static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const char *path, const char *);
 static int is_modified(const char *, const alpm_backup_t *);
-static void alpm_do_backup(alpm_pkg_t *);
-static void alpm_find_backups(void);
+static void alpm_do_backup(backup_t *);
+static alpm_list_t *alpm_find_backups(void);
 static int parse_options(int, char*[]);
 
 /* runtime configuration */
@@ -112,32 +117,45 @@ int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
 	return ret;
 } /* }}} */
 
-void alpm_do_backup(alpm_pkg_t *pkg) /* {{{ */
+void alpm_do_backup(const backup_t *b) /* {{{ */
 {
-	const char *pkgname = alpm_pkg_get_name(pkg);
-	const alpm_list_t *i;
+	const alpm_backup_t *backup = b->data;
 	char path[PATH_MAX];
 
-	for (i = alpm_pkg_get_backup(pkg); i; i = alpm_list_next(i)) {
-		const alpm_backup_t *backup = i->data;
-
-		snprintf(path, PATH_MAX, "%s%s", PACMAN_ROOT, backup->name);
-		if (is_modified(path, backup) == 0)
-			continue;
-
-		printf("%s: %s\n", pkgname, path);
-		archive(path, pkgname);
-	}
+	snprintf(path, PATH_MAX, "%s%s", PACMAN_ROOT, backup->name);
+	printf("%s: %s\n", b->pkgname, path);
+	archive(path, b->pkgname);
 } /* }}} */
 
-void alpm_find_backups(void) /* {{{ */
+alpm_list_t *alpm_find_backups(void) /* {{{ */
 {
 	alpm_db_t *db;
-	const alpm_list_t *i;
+	const alpm_list_t *i, *j;
+	char path[PATH_MAX];
+	alpm_list_t *backups = NULL;
 
 	db = alpm_get_localdb(pmhandle);
-	for (i = alpm_db_get_pkgcache(db); i; i = alpm_list_next(i))
-		alpm_do_backup(i->data);
+	for (i = alpm_db_get_pkgcache(db); i; i = alpm_list_next(i)) {
+		alpm_pkg_t *pkg = i->data;
+		const char *pkgname = alpm_pkg_get_name(pkg);
+
+		for (j = alpm_pkg_get_backup(pkg); j; j = alpm_list_next(j)) {
+			const alpm_backup_t *backup = j->data;
+
+			snprintf(path, PATH_MAX, "%s%s", PACMAN_ROOT, backup->name);
+			if (is_modified(path, backup) == 0)
+				continue;
+			else {
+				backup_t *b = malloc(sizeof(backup_t));
+				b->pkgname = pkgname;
+				b->data = backup;
+				printf("backup: %s\n", pkgname);
+				backups = alpm_list_add(backups, b);
+			}
+		}
+	}
+
+	return backups;
 } /* }}} */
 
 int parse_options(int argc, char *argv[]) /* {{{ */
@@ -180,7 +198,13 @@ int main(int argc, char *argv[])
 		goto finish;
 	}
 
-	alpm_find_backups();
+	alpm_list_t *backups = alpm_find_backups(), *i;
+	for (i = backups; i; i = alpm_list_next(i)) {
+		const backup_t *b = i->data;
+
+		printf("pkg: %s\n", b->pkgname);
+		alpm_do_backup(b);
+	}
 
 finish:
 	alpm_release(pmhandle);
