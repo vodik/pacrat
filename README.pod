@@ -1,3 +1,23 @@
 =head1 NAME
 
-pacrat - pacman config manager
+pacrat - package config manager using libalpm
+
+=head1 SYNOPSIS
+
+Usage: I<pacrat> E<lt>operationE<gt> [ options ]
+
+=head1 DESCRIPTION
+
+pacrat is a simple tool to manage configuration files known to libalpm.  It
+make local copies of modified system configuration files and pushes locally
+stored copies back onto the system. When combined with a source control system
+this tool allows for efficient management, storage, and visioning of system
+wide configuration files.
+
+=head1 OPERATIONS
+
+=over 4
+
+=item B<-l, --list>
+
+List all modified configuration files libalpm tracks.
