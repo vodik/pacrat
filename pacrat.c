@@ -84,6 +84,7 @@ static void mkpath(const char *, mode_t);
 static void archive(const backup_t *);
 static int is_modified(const char *, const alpm_backup_t *);
 static alpm_list_t *alpm_find_backups(void);
+static alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir);
 static int parse_options(int, char*[]);
 static int strings_init(void);
 static void print_backup(backup_t *);
@@ -260,6 +261,23 @@ alpm_list_t *alpm_find_backups(void) /* {{{ */
 	return backups;
 } /* }}} */
 
+alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir){ /* {{{ */
+    alpm_filelist_t  *packagelist = alpm_pkg_get_files(pkg);
+    char fileloc[PATH_MAX];
+	struct stat buf;
+    unsigned int i,status;
+    alpm_list_t *files = NULL;
+	for (i = 0; i < packagelist->count; i++) { 
+        snprintf(fileloc, PATH_MAX, "%s/%s/%s", dir, alpm_pkg_get_name(pkg), packagelist->files[i].name);
+		status = stat (fileloc, &buf);	
+		if (status == 0 && S_ISREG (buf.st_mode)){ 
+			files = alpm_list_add(files, fileloc);
+			printf("%s\n", fileloc);
+		}
+    }
+    return files;
+} /* }}} */
+
 int parse_options(int argc, char *argv[]) /* {{{ */
 {
 	int opt, option_index = 0;
@@ -410,5 +428,4 @@ finish:
 	alpm_release(pmhandle);
 	return ret;
 }
-
 /* vim: set ts=4 sw=4 noet: */
