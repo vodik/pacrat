@@ -100,6 +100,8 @@ static struct {
 
 	short color;
 	int all : 1;
+
+	alpm_list_t *targets;
 } cfg;
 
 alpm_handle_t *pmhandle;
@@ -285,9 +287,17 @@ alpm_list_t *alpm_all_backups(int everything) /* {{{ */
 
 	alpm_db_t *db = alpm_get_localdb(pmhandle);
 
-	for (i = alpm_db_get_pkgcache(db); i; i = alpm_list_next(i)) {
-		alpm_list_t *pkg_backups = alpm_find_backups(i->data, everything);
-		backups = alpm_list_join(backups, pkg_backups);
+	if (cfg.targets) {
+		for (i = cfg.targets; i; i = alpm_list_next(i)) {
+			alpm_pkg_t *pkg = alpm_db_get_pkg(db, i->data);
+			alpm_list_t *pkg_backups = alpm_find_backups(pkg, everything);
+			backups = alpm_list_join(backups, pkg_backups);
+		}
+	} else {
+		for (i = alpm_db_get_pkgcache(db); i; i = alpm_list_next(i)) {
+			alpm_list_t *pkg_backups = alpm_find_backups(i->data, everything);
+			backups = alpm_list_join(backups, pkg_backups);
+		}
 	}
 
 	return backups;
@@ -317,6 +327,7 @@ int parse_options(int argc, char *argv[]) /* {{{ */
 
 	static const struct option opts[] = {
 		/* operations */
+		{"pull",    no_argument,       0, 'p'},
 		{"list",    no_argument,       0, 'l'},
 
 		/* options */
@@ -329,13 +340,16 @@ int parse_options(int argc, char *argv[]) /* {{{ */
 		{0, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "lac:hvV", opts, &option_index)) != -1) {
+	while ((opt = getopt_long(argc, argv, "plac:hvV", opts, &option_index)) != -1) {
 		switch(opt) {
-			case 'a':
-				cfg.all |= 1;
+			case 'p':
+				cfg.opmask |= OP_PULL;
 				break;
 			case 'l':
 				cfg.opmask |= OP_LIST;
+				break;
+			case 'a':
+				cfg.all |= 1;
 				break;
 			case 'c':
 				if (!optarg || STREQ(optarg, "auto")) {
@@ -369,6 +383,23 @@ int parse_options(int argc, char *argv[]) /* {{{ */
 				return 1;
 		}
 	}
+
+#define NOT_EXCL(val) (cfg.opmask & (val) && (cfg.opmask & ~(val)))
+
+	/* check for invalid operation combos */
+	if (NOT_EXCL(OP_LIST) || NOT_EXCL(OP_PULL) || NOT_EXCL(OP_PUSH)) {
+		fprintf(stderr, "error: invalid operation\n");
+		return 2;
+	}
+
+	while (optind < argc) {
+		if (!alpm_list_find_str(cfg.targets, argv[optind])) {
+			cwr_fprintf(stderr, LOG_DEBUG, "adding target: %s\n", argv[optind]);
+			cfg.targets = alpm_list_add(cfg.targets, strdup(argv[optind]));
+		}
+		optind++;
+	}
+
 	return 0;
 } /* }}} */
 
@@ -466,7 +497,7 @@ int main(int argc, char *argv[])
 			print_backup(i->data);
 		alpm_list_free_inner(backups, free_backup);
 		alpm_list_free(backups);
-	} else {
+	} else if (cfg.opmask & OP_PULL) {
 		alpm_list_t *backups = alpm_all_backups(cfg.all), *i;
 		for (i = backups; i; i = alpm_list_next(i))
 			archive(i->data);
