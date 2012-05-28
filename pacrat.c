@@ -65,6 +65,7 @@ enum {
 typedef struct __backup_t {
 	const char *pkgname;
 	char *path;
+	/* char *pacnew; */
 	const char *hash;
 } backup_t;
 
@@ -277,17 +278,18 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 		if (check_pacnew(path))
 			cwr_fprintf(stderr, LOG_WARN, "pacnew file detected %s\n", path);
 
+		/* filter unmodified files */
 		if (!everything && is_modified(path, backup) == 0)
 			continue;
-		else {
-			backup_t *b = malloc(sizeof(backup_t));
-			b->pkgname = pkgname;
-			b->path = strdup(path);
-			b->hash = backup->hash;
 
-			cwr_fprintf(stderr, LOG_DEBUG, "found backup: %s\n", path);
-			backups = alpm_list_add(backups, b);
-		}
+		/* mark the file to be operated on then */
+		backup_t *b = malloc(sizeof(backup_t));
+		b->pkgname = pkgname;
+		b->path = strdup(path);
+		b->hash = backup->hash;
+
+		cwr_fprintf(stderr, LOG_DEBUG, "found backup: %s\n", path);
+		backups = alpm_list_add(backups, b);
 	}
 
 	return backups;
