@@ -59,6 +59,12 @@ typedef enum __operation_t {
 } operation_t;
 
 enum {
+	CONF_PACNEW  = 1,
+	CONF_PACSAVE = (1 << 1),
+	CONF_PACORIG = (1 << 2)
+};
+
+enum {
 	OP_DEBUG = 1000
 };
 
@@ -84,7 +90,7 @@ static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const backup_t *);
 static int is_modified(const char *, const alpm_backup_t *);
-static int check_pacnew(const char *);
+static int find_backupfiles(const char *);
 static alpm_list_t *alpm_find_backups(alpm_pkg_t *, int);
 static alpm_list_t *alpm_all_backups(int);
 static alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir);
@@ -247,12 +253,24 @@ int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
 	return ret;
 } /* }}} */
 
-int check_pacnew(const char *file) /* {{{ */
+int find_backupfiles(const char *file) /* {{{ */
 {
 	char path[PATH_MAX];
+	int ret = 0;
 
 	snprintf(path, PATH_MAX, "%s.pacnew", file);
-	return access(path, R_OK) == 0;
+	if (access(path, R_OK) == 0)
+		ret |= CONF_PACNEW;
+
+	snprintf(path, PATH_MAX, "%s.pacsave", file);
+	if (access(path, R_OK) == 0)
+		ret |= CONF_PACSAVE;
+
+	snprintf(path, PATH_MAX, "%s.pacorig", file);
+	if (access(path, R_OK) == 0)
+		ret |= CONF_PACORIG;
+
+	return ret;
 } /* }}} */
 
 alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
@@ -274,9 +292,14 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 			continue;
 		}
 
-		/* check if there is a pacnew file */
-		if (check_pacnew(path))
+		/* check if there is a pacnew/pacsave/pacorig file */
+		int temp = find_backupfiles(path);
+		if (temp & CONF_PACNEW)
 			cwr_fprintf(stderr, LOG_WARN, "pacnew file detected %s\n", path);
+		if (temp & CONF_PACSAVE)
+			cwr_fprintf(stderr, LOG_WARN, "pacsave file detected %s\n", path);
+		if (temp & CONF_PACORIG)
+			cwr_fprintf(stderr, LOG_WARN, "pacorig file detected %s\n", path);
 
 		/* filter unmodified files */
 		if (!everything && is_modified(path, backup) == 0)
