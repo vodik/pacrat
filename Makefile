@@ -12,7 +12,7 @@ MANPREFIX?=${PREFIX}/share/man
 
 CPPFLAGS:=-DPACRAT_VERSION=\"${VERSION}\" ${CPPFLAGS}
 CFLAGS:=-std=gnu99 -g -pedantic -Wall -Wextra ${CFLAGS} -g
-LDFLAGS:=-lcurl -lalpm ${LDFLAGS}
+LDFLAGS:=-lalpm -lgit2 -lz -lcrypto ${LDFLAGS}
 
 all: ${OUT} doc
 
