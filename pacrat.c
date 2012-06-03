@@ -101,7 +101,7 @@ static alpm_list_t *alpm_find_backups(alpm_pkg_t *, int);
 static alpm_list_t *alpm_all_backups(int);
 static int parse_options(int, char*[]);
 static int strings_init(void);
-static void print_backup(backup_t *);
+static void print_status(backup_t *);
 static void usage(void);
 static void version(void);
 static void free_backup(void *);
@@ -460,11 +460,13 @@ int strings_init(void) /* {{{ */
 	return 0;
 } /* }}} */
 
-void print_backup(backup_t *b) /* {{{ */
+void print_status(backup_t *b) /* {{{ */
 {
 	/* printf("%s %s%s%s %s\n", colstr->info, colstr->pkg, b->pkgname, colstr->nc, b->path); */
 	printf("%s%s%s %s\n", colstr->pkg, b->pkgname, colstr->nc, b->system.path);
-	if (!STREQ(b->system.hash, b->local.hash)) {
+	if (!b->local.path) {
+		printf("  file not locally tracked\n");
+	} else if (!STREQ(b->system.hash, b->local.hash)) {
 		printf("  %s hashes don't match!\n", colstr->warn);
 		printf("     %s\n     %s\n", b->system.hash, b->local.hash);
 	}
@@ -535,7 +537,7 @@ int main(int argc, char *argv[])
 	if (cfg.opmask & OP_LIST) {
 		alpm_list_t *backups = alpm_all_backups(cfg.all), *i;
 		for (i = backups; i; i = i->next)
-			print_backup(i->data);
+			print_status(i->data);
 		alpm_list_free_inner(backups, free_backup);
 		alpm_list_free(backups);
 	} else if (cfg.opmask & OP_PULL) {
