@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 
 #include <alpm.h>
+#include "git.h"
 
 typedef int (*cmdhandler)(int argc, char *argv[]);
 
@@ -260,6 +261,8 @@ int main(int argc, char *argv[])
 		cwr_fprintf(stderr, LOG_ERROR, "failed to initialize alpm library\n");
 		goto finish;
 	}
+
+	repo_open();
 
 	ret = run(cmd, --argc, ++argv);
 

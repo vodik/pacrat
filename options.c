@@ -29,7 +29,8 @@
 /* }}} */
 
 options_t cfg = {
-	.logmask = LOG_ERROR | LOG_WARN | LOG_INFO,
+	/* .logmask = LOG_ERROR | LOG_WARN | LOG_INFO, */
+	.logmask = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG,
 	.color   = 1
 };
 
