@@ -13,9 +13,6 @@
 #include <alpm.h>
 #include "config.h"
 
-#include "status.h"
-#include "pull.h"
-
 typedef int (*cmdhandler)(int argc, char **argv);
 
 typedef struct __command_t {
@@ -309,10 +306,7 @@ int main(int argc, char *argv[])
 	enum _alpm_errno_t err;
 
 	setlocale(LC_ALL, "");
-
-	if ((ret = strings_init()) != 0) {
-		return ret;
-	}
+	strings_init();
 
 	if (argc == 1) {
 		cwr_fprintf(stderr, LOG_ERROR, "not enough arguments\n");

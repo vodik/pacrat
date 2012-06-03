@@ -46,4 +46,7 @@ alpm_list_t *alpm_all_backups(int);
 
 void free_backup(void *);
 
+int cmd_status(int argc, char **argv);
+int cmd_pull(int argc, char **argv);
+
 #endif

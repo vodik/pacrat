@@ -1,7 +1,6 @@
-#include "status.h"
+#include "pacrat.h"
 
 #include <stdio.h>
-#include "pacrat.h"
 
 int cmd_pull(int argc, char **argv)
 {

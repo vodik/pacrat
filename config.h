@@ -30,6 +30,6 @@ extern options_t cfg;
 strings_t colstr;
 
 int parse_options(int, char**);
-int strings_init(void);
+void strings_init(void);
 
 #endif
