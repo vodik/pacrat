@@ -94,8 +94,8 @@ static int cwr_vfprintf(FILE *, loglevel_t, const char *, va_list) __attribute__
 static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const backup_t *);
-static void file_init(file_t *, const char *);
-static int is_modified(const char *, const alpm_backup_t *);
+static char *get_hash(const char *);
+static void file_init(file_t *, const char *, char *);
 static int check_pacfiles(const char *);
 static alpm_list_t *alpm_find_backups(alpm_pkg_t *, int);
 static alpm_list_t *alpm_all_backups(int);
@@ -242,31 +242,20 @@ void archive(const backup_t *backup) /* {{{ */
 	copy(backup->system.path, dest);
 } /* }}} */
 
-void file_init(file_t *file, const char *path) /* {{{ */
+char *get_hash(const char *path) /* {{{ */
 {
-	file->hash = alpm_compute_md5sum(path);
-	if(!file->hash) {
-		cwr_fprintf(stderr, LOG_ERROR, "failed to compute hash for %s\n", file->path);
+	char *hash = alpm_compute_md5sum(path);
+	if(!hash) {
+		cwr_fprintf(stderr, LOG_ERROR, "failed to compute hash for %s\n", path);
 		exit(EXIT_FAILURE);
 	}
-
-	file->path = strdup(path);
+	return hash;
 } /* }}} */
 
-int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
+void file_init(file_t *file, const char *path, char *hash) /* {{{ */
 {
-	int ret = 0;
-	char *md5sum = alpm_compute_md5sum(path);
-
-	if(!md5sum) {
-		perror("alpm_compute_md5sum");
-		exit(EXIT_FAILURE);
-	}
-
-	ret = strcmp(md5sum, backup->hash) != 0;
-	free(md5sum);
-
-	return ret;
+	file->hash = hash ? hash : get_hash(path);
+	file->path = strdup(path);
 } /* }}} */
 
 int check_pacfiles(const char *file) /* {{{ */
@@ -319,9 +308,11 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 			cwr_fprintf(stderr, LOG_WARN, "pacorig file detected %s\n", path);
 
 		/* filter unmodified files */
-		/* TODO: this calculates the system.hash again internally */
-		if (!everything && is_modified(path, backup) == 0)
+		char *hash = get_hash(path);
+		if (!everything && STREQ(backup->hash, hash)) {
+			free(hash);
 			continue;
+		}
 
 		cwr_fprintf(stderr, LOG_DEBUG, "found backup: %s\n", path);
 
@@ -331,7 +322,7 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 
 		b->pkgname = pkgname;
 		b->hash = backup->hash;
-		file_init(&b->system, path);
+		file_init(&b->system, path, hash);
 
 		/* look for a local copy */
 		snprintf(path, PATH_MAX, "%s/%s", pkgname, backup->name);
@@ -339,8 +330,7 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 		size_t status = stat(path, &st);
 		if (status == 0 && S_ISREG (st.st_mode)) {
 			cwr_fprintf(stderr, LOG_DEBUG, "found local copy: %s\n", path);
-
-			file_init(&b->local, path);
+			file_init(&b->local, path, NULL);
 		}
 
 		backups = alpm_list_add(backups, b);
