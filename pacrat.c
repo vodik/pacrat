@@ -68,10 +68,15 @@ enum {
 	OP_DEBUG = 1000
 };
 
+typedef struct __file_t {
+	char *path;
+	char *hash;
+} file_t;
+
 typedef struct __backup_t {
 	const char *pkgname;
-	char *path;
-	/* char *pacnew; */
+	file_t system;
+	file_t local;
 	const char *hash;
 } backup_t;
 
@@ -93,7 +98,6 @@ static int is_modified(const char *, const alpm_backup_t *);
 static int check_pacfiles(const char *);
 static alpm_list_t *alpm_find_backups(alpm_pkg_t *, int);
 static alpm_list_t *alpm_all_backups(int);
-static alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir);
 static int parse_options(int, char*[]);
 static int strings_init(void);
 static void print_backup(backup_t *);
@@ -214,7 +218,7 @@ void archive(const backup_t *backup) /* {{{ */
 	struct stat st;
 	char dest[PATH_MAX];
 	char *ptr, *root;
-	snprintf(dest, PATH_MAX, "%s%s", backup->pkgname, backup->path);
+	snprintf(dest, PATH_MAX, "%s%s", backup->pkgname, backup->system.path);
 
 	root = dest + strlen(backup->pkgname);
 
@@ -234,7 +238,17 @@ void archive(const backup_t *backup) /* {{{ */
 		}
 	}
 
-	copy(backup->path, dest);
+	copy(backup->system.path, dest);
+} /* }}} */
+
+void calc_hash(file_t *file) /* {{{ */
+{
+	file->hash = alpm_compute_md5sum(file->path);
+
+	if(!file->hash) {
+		cwr_fprintf(stderr, LOG_ERROR, "failed to compute hash for %s\n", file->path);
+		exit(EXIT_FAILURE);
+	}
 } /* }}} */
 
 int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
@@ -277,6 +291,7 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 {
 	alpm_list_t *backups = NULL;
 	const alpm_list_t *i;
+	struct stat st;
 	char path[PATH_MAX];
 
 	const char *pkgname = alpm_pkg_get_name(pkg);
@@ -302,16 +317,33 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 			cwr_fprintf(stderr, LOG_WARN, "pacorig file detected %s\n", path);
 
 		/* filter unmodified files */
+		/* TODO: this calculates the system.hash again internally */
 		if (!everything && is_modified(path, backup) == 0)
 			continue;
 
+		cwr_fprintf(stderr, LOG_DEBUG, "found backup: %s\n", path);
+
 		/* mark the file to be operated on then */
 		backup_t *b = malloc(sizeof(backup_t));
+		memset(b, 0, sizeof(backup_t));
+
 		b->pkgname = pkgname;
-		b->path = strdup(path);
 		b->hash = backup->hash;
 
-		cwr_fprintf(stderr, LOG_DEBUG, "found backup: %s\n", path);
+		b->system.path = strdup(path);
+		calc_hash(&b->system);
+
+		/* look for a local copy */
+		snprintf(path, PATH_MAX, "%s/%s", pkgname, backup->name);
+
+		size_t status = stat(path, &st);
+		if (status == 0 && S_ISREG (st.st_mode)) {
+			cwr_fprintf(stderr, LOG_DEBUG, "found local copy: %s\n", path);
+
+			b->local.path = strdup(path);
+			calc_hash(&b->local);
+		}
+
 		backups = alpm_list_add(backups, b);
 	}
 
@@ -332,29 +364,6 @@ alpm_list_t *alpm_all_backups(int everything) /* {{{ */
 	}
 
 	return backups;
-} /* }}} */
-
-alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir) /* {{{ */
-{
-	char fileloc[PATH_MAX];
-	struct stat buf;
-	size_t status;
-	alpm_list_t *files = NULL, *i;
-	backup_t *backup = malloc(sizeof(backup_t));
-	backup->pkgname = alpm_pkg_get_name(pkg);
-	for (i = alpm_find_backups(pkg,1); i; alpm_list_next(i)) {
-		const alpm_backup_t *b = i->data;
-		snprintf(fileloc, PATH_MAX, "%s/%s/%s", dir, alpm_pkg_get_name(pkg), (char *)i);
-		status = stat(fileloc, &buf);
-		if (status == 0 && S_ISREG (buf.st_mode)){
-			backup->hash = b->hash;
-			backup->path = fileloc;
-			files = alpm_list_add(files, backup);
-			cwr_fprintf(stderr, LOG_DEBUG, "adding file: %s\n", fileloc);
-			printf("%s\n", fileloc);
-		}
-	}
-	return files;
 } /* }}} */
 
 int parse_options(int argc, char *argv[]) /* {{{ */
@@ -465,7 +474,11 @@ int strings_init(void) /* {{{ */
 void print_backup(backup_t *b) /* {{{ */
 {
 	/* printf("%s %s%s%s %s\n", colstr->info, colstr->pkg, b->pkgname, colstr->nc, b->path); */
-	printf("%s%s%s %s\n", colstr->pkg, b->pkgname, colstr->nc, b->path);
+	printf("%s%s%s %s\n", colstr->pkg, b->pkgname, colstr->nc, b->system.path);
+	if (!STREQ(b->system.hash, b->local.hash)) {
+		printf("  %s hashes don't match:!\n", colstr->warn);
+		printf("     %s\n     %s\n", b->system.hash, b->local.hash);
+	}
 } /* }}} */
 
 void usage(void) /* {{{ */
@@ -500,7 +513,10 @@ void version(void) /* {{{ */
 
 void free_backup(void *ptr) { /* {{{ */
 	backup_t *backup = ptr;
-	free(backup->path);
+	free(backup->system.path);
+	free(backup->system.hash);
+	free(backup->local.path);
+	free(backup->local.hash);
 	free(backup);
 } /* }}} */
 
