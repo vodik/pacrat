@@ -94,6 +94,7 @@ static int cwr_vfprintf(FILE *, loglevel_t, const char *, va_list) __attribute__
 static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const backup_t *);
+static void file_init(file_t *, const char *);
 static int is_modified(const char *, const alpm_backup_t *);
 static int check_pacfiles(const char *);
 static alpm_list_t *alpm_find_backups(alpm_pkg_t *, int);
@@ -241,14 +242,15 @@ void archive(const backup_t *backup) /* {{{ */
 	copy(backup->system.path, dest);
 } /* }}} */
 
-void calc_hash(file_t *file) /* {{{ */
+void file_init(file_t *file, const char *path) /* {{{ */
 {
-	file->hash = alpm_compute_md5sum(file->path);
-
+	file->hash = alpm_compute_md5sum(path);
 	if(!file->hash) {
 		cwr_fprintf(stderr, LOG_ERROR, "failed to compute hash for %s\n", file->path);
 		exit(EXIT_FAILURE);
 	}
+
+	file->path = strdup(path);
 } /* }}} */
 
 int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
@@ -296,7 +298,7 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 
 	const char *pkgname = alpm_pkg_get_name(pkg);
 
-	for (i = alpm_pkg_get_backup(pkg); i; i = alpm_list_next(i)) {
+	for (i = alpm_pkg_get_backup(pkg); i; i = i->next) {
 		const alpm_backup_t *backup = i->data;
 
 		snprintf(path, PATH_MAX, "%s%s", PACMAN_ROOT, backup->name);
@@ -329,9 +331,7 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 
 		b->pkgname = pkgname;
 		b->hash = backup->hash;
-
-		b->system.path = strdup(path);
-		calc_hash(&b->system);
+		file_init(&b->system, path);
 
 		/* look for a local copy */
 		snprintf(path, PATH_MAX, "%s/%s", pkgname, backup->name);
@@ -340,8 +340,7 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 		if (status == 0 && S_ISREG (st.st_mode)) {
 			cwr_fprintf(stderr, LOG_DEBUG, "found local copy: %s\n", path);
 
-			b->local.path = strdup(path);
-			calc_hash(&b->local);
+			file_init(&b->local, path);
 		}
 
 		backups = alpm_list_add(backups, b);
@@ -358,7 +357,7 @@ alpm_list_t *alpm_all_backups(int everything) /* {{{ */
 	alpm_db_t *db = alpm_get_localdb(pmhandle);
 	alpm_list_t *targets = cfg.targets ? alpm_db_search(db, cfg.targets) : alpm_db_get_pkgcache(db);
 
-	for (i = targets; i; i = alpm_list_next(i)) {
+	for (i = targets; i; i = i->next) {
 		alpm_list_t *pkg_backups = alpm_find_backups(i->data, everything);
 		backups = alpm_list_join(backups, pkg_backups);
 	}
@@ -476,7 +475,7 @@ void print_backup(backup_t *b) /* {{{ */
 	/* printf("%s %s%s%s %s\n", colstr->info, colstr->pkg, b->pkgname, colstr->nc, b->path); */
 	printf("%s%s%s %s\n", colstr->pkg, b->pkgname, colstr->nc, b->system.path);
 	if (!STREQ(b->system.hash, b->local.hash)) {
-		printf("  %s hashes don't match:!\n", colstr->warn);
+		printf("  %s hashes don't match!\n", colstr->warn);
 		printf("     %s\n     %s\n", b->system.hash, b->local.hash);
 	}
 } /* }}} */
@@ -545,13 +544,13 @@ int main(int argc, char *argv[])
 
 	if (cfg.opmask & OP_LIST) {
 		alpm_list_t *backups = alpm_all_backups(cfg.all), *i;
-		for (i = backups; i; i = alpm_list_next(i))
+		for (i = backups; i; i = i->next)
 			print_backup(i->data);
 		alpm_list_free_inner(backups, free_backup);
 		alpm_list_free(backups);
 	} else if (cfg.opmask & OP_PULL) {
 		alpm_list_t *backups = alpm_all_backups(cfg.all), *i;
-		for (i = backups; i; i = alpm_list_next(i))
+		for (i = backups; i; i = i->next)
 			archive(i->data);
 		alpm_list_free_inner(backups, free_backup);
 		alpm_list_free(backups);
