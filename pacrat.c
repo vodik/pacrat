@@ -340,11 +340,16 @@ alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir) /* {{{ */
 	struct stat buf;
 	size_t status;
 	alpm_list_t *files = NULL, *i;
+	backup_t *backup = malloc(sizeof(backup_t));
+	backup->pkgname = alpm_pkg_get_name(pkg);
 	for (i = alpm_find_backups(pkg,1); i; alpm_list_next(i)) {
+		const alpm_backup_t *b = i->data;
 		snprintf(fileloc, PATH_MAX, "%s/%s/%s", dir, alpm_pkg_get_name(pkg), (char *)i);
 		status = stat(fileloc, &buf);
 		if (status == 0 && S_ISREG (buf.st_mode)){
-			files = alpm_list_add(files, fileloc);
+			backup->hash = b->hash;
+			backup->path = fileloc;
+			files = alpm_list_add(files, backup);
 			cwr_fprintf(stderr, LOG_DEBUG, "adding file: %s\n", fileloc);
 			printf("%s\n", fileloc);
 		}
