@@ -6,6 +6,33 @@
 #include <unistd.h>
 #include <getopt.h>
 
+/* macros {{{ */
+#define NC          "\033[0m"
+#define BOLD        "\033[1m"
+
+#define BLACK       "\033[0;30m"
+#define RED         "\033[0;31m"
+#define GREEN       "\033[0;32m"
+#define YELLOW      "\033[0;33m"
+#define BLUE        "\033[0;34m"
+#define MAGENTA     "\033[0;35m"
+#define CYAN        "\033[0;36m"
+#define WHITE       "\033[0;37m"
+#define BOLDBLACK   "\033[1;30m"
+#define BOLDRED     "\033[1;31m"
+#define BOLDGREEN   "\033[1;32m"
+#define BOLDYELLOW  "\033[1;33m"
+#define BOLDBLUE    "\033[1;34m"
+#define BOLDMAGENTA "\033[1;35m"
+#define BOLDCYAN    "\033[1;36m"
+#define BOLDWHITE   "\033[1;37m"
+/* }}} */
+
+options_t cfg = {
+	.logmask = LOG_ERROR | LOG_WARN | LOG_INFO,
+	.color   = 1
+};
+
 static void usage(void);
 static void version(void);
 
@@ -30,12 +57,12 @@ int parse_options(int argc, char **argv) /* {{{ */
 
 	while ((opt = getopt_long(argc, argv, "plac:hvV", opts, &option_index)) != -1) {
 		switch(opt) {
-			case 'p':
-				cfg.opmask |= OP_PULL;
-				break;
-			case 'l':
-				cfg.opmask |= OP_LIST;
-				break;
+			/* case 'p': */
+			/* 	cfg.opmask |= OP_PULL; */
+			/* 	break; */
+			/* case 'l': */
+			/* 	cfg.opmask |= OP_LIST; */
+			/* 	break; */
 			case 'a':
 				cfg.all |= 1;
 				break;
@@ -72,13 +99,13 @@ int parse_options(int argc, char **argv) /* {{{ */
 		}
 	}
 
-#define NOT_EXCL(val) (cfg.opmask & (val) && (cfg.opmask & ~(val)))
+/* #define NOT_EXCL(val) (cfg.opmask & (val) && (cfg.opmask & ~(val))) */
 
 	/* check for invalid operation combos */
-	if (NOT_EXCL(OP_LIST) || NOT_EXCL(OP_PULL) || NOT_EXCL(OP_PUSH)) {
-		fprintf(stderr, "error: invalid operation\n");
-		return 2;
-	}
+	/* if (NOT_EXCL(OP_LIST) || NOT_EXCL(OP_PULL) || NOT_EXCL(OP_PUSH)) { */
+	/* 	fprintf(stderr, "error: invalid operation\n"); */
+	/* 	return 2; */
+	/* } */
 
 	while (optind < argc) {
 		if (!alpm_list_find_str(cfg.targets, argv[optind])) {
@@ -89,6 +116,23 @@ int parse_options(int argc, char **argv) /* {{{ */
 	}
 
 	return 0;
+} /* }}} */
+
+void strings_init(void) /* {{{ */
+{
+	if (cfg.color > 0) {
+		colstr.error = BOLDRED "::" NC;
+		colstr.warn  = BOLDYELLOW "::" NC;
+		colstr.info  = BOLDBLUE "::" NC;
+		colstr.pkg   = BOLD;
+		colstr.nc    = NC;
+	} else {
+		colstr.error = "error:";
+		colstr.warn  = "warning:";
+		colstr.info  = "::";
+		colstr.pkg   = "";
+		colstr.nc    = "";
+	}
 } /* }}} */
 
 void usage(void) /* {{{ */

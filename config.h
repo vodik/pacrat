@@ -9,15 +9,27 @@ enum {
 };
 
 /* runtime configuration */
-static struct {
+typedef struct {
 	loglevel_t logmask;
 
 	short color;
 	int all : 1;
 
 	alpm_list_t *targets;
-} cfg;
+} options_t;
+
+typedef struct {
+	const char *error;
+	const char *warn;
+	const char *info;
+	const char *pkg;
+	const char *nc;
+} strings_t;
+
+extern options_t cfg;
+strings_t colstr;
 
 int parse_options(int, char**);
+int strings_init(void);
 
 #endif

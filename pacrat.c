@@ -14,28 +14,7 @@
 #include "config.h"
 
 #include "status.h"
-
-/* macros {{{ */
-#define NC          "\033[0m"
-#define BOLD        "\033[1m"
-
-#define BLACK       "\033[0;30m"
-#define RED         "\033[0;31m"
-#define GREEN       "\033[0;32m"
-#define YELLOW      "\033[0;33m"
-#define BLUE        "\033[0;34m"
-#define MAGENTA     "\033[0;35m"
-#define CYAN        "\033[0;36m"
-#define WHITE       "\033[0;37m"
-#define BOLDBLACK   "\033[1;30m"
-#define BOLDRED     "\033[1;31m"
-#define BOLDGREEN   "\033[1;32m"
-#define BOLDYELLOW  "\033[1;33m"
-#define BOLDBLUE    "\033[1;34m"
-#define BOLDMAGENTA "\033[1;35m"
-#define BOLDCYAN    "\033[1;36m"
-#define BOLDWHITE   "\033[1;37m"
-/* }}} */
+#include "pull.h"
 
 typedef int (*cmdhandler)(int argc, char **argv);
 
@@ -48,7 +27,7 @@ typedef struct __command_t {
 static command_t pacrat_cmds[] = {
 	/* command, handler,    help msg */
 	{"status",  cmd_status, "TODO"},
-	{"pull",    NULL,       "TODO"},
+	{"pull",    cmd_pull,   "TODO"},
 	{NULL}
 };
 
@@ -58,19 +37,10 @@ enum {
 	CONF_PACORIG = (1 << 2)
 };
 
-typedef struct __strings_t {
-	const char *error;
-	const char *warn;
-	const char *info;
-	const char *pkg;
-	const char *nc;
-} strings_t;
-
 static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const backup_t *);
 static int check_pacfiles(const char *);
-static int strings_init(void);
 
 static const command_t *find(const char *name)
 {
@@ -88,7 +58,6 @@ static int run(const command_t *cmd, int argc, char *argv[])
 }
 
 alpm_handle_t *pmhandle;
-strings_t *colstr;
 
 int cwr_fprintf(FILE *stream, loglevel_t level, const char *format, ...) /* {{{ */
 {
@@ -125,13 +94,13 @@ int cwr_vfprintf(FILE *stream, loglevel_t level, const char *format, va_list arg
 	switch (level) {
 		case LOG_VERBOSE:
 		case LOG_INFO:
-			prefix = colstr->info;
+			prefix = colstr.info;
 			break;
 		case LOG_ERROR:
-			prefix = colstr->error;
+			prefix = colstr.error;
 			break;
 		case LOG_WARN:
-			prefix = colstr->warn;
+			prefix = colstr.warn;
 			break;
 		case LOG_DEBUG:
 			prefix = "debug:";
@@ -325,29 +294,6 @@ alpm_list_t *alpm_all_backups(int everything) /* {{{ */
 	return backups;
 } /* }}} */
 
-int strings_init(void) /* {{{ */
-{
-	colstr = malloc(sizeof(strings_t));
-	if (!colstr)
-		return 1;
-
-	if (cfg.color > 0) {
-		colstr->error = BOLDRED "::" NC;
-		colstr->warn  = BOLDYELLOW "::" NC;
-		colstr->info  = BOLDBLUE "::" NC;
-		colstr->pkg   = BOLD;
-		colstr->nc    = NC;
-	} else {
-		colstr->error = "error:";
-		colstr->warn  = "warning:";
-		colstr->info  = "::";
-		colstr->pkg   = "";
-		colstr->nc    = "";
-	}
-
-	return 0;
-} /* }}} */
-
 void free_backup(void *ptr) { /* {{{ */
 	backup_t *backup = ptr;
 	free(backup->system.path);
@@ -363,8 +309,6 @@ int main(int argc, char *argv[])
 	enum _alpm_errno_t err;
 
 	setlocale(LC_ALL, "");
-
-	cfg.logmask = LOG_ERROR | LOG_WARN | LOG_INFO;
 
 	if ((ret = strings_init()) != 0) {
 		return ret;
