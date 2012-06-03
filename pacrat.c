@@ -26,15 +26,15 @@ static command_t pacrat_cmds[] = {
 	{NULL}
 };
 
-enum {
+typedef enum pacfiles_t {
 	CONF_PACNEW  = 1,
 	CONF_PACSAVE = (1 << 1),
 	CONF_PACORIG = (1 << 2)
-};
+} pacfiles_t;
 
 alpm_handle_t *pmhandle;
 
-static int check_pacfiles(const char *);
+static pacfiles_t check_pacfiles(const char *);
 static const command_t *find(const char *);
 static int run(const command_t *, int, char *[]);
 
@@ -101,7 +101,8 @@ void file_init(file_t *file, const char *path, char *hash) /* {{{ */
 	file->path = strdup(path);
 } /* }}} */
 
-void backup_free(void *ptr) { /* {{{ */
+void backup_free(void *ptr) /* {{{ */
+{
 	backup_t *backup = ptr;
 	free(backup->system.path);
 	free(backup->system.hash);
@@ -120,7 +121,7 @@ char *get_hash(const char *path) /* {{{ */
 	return hash;
 } /* }}} */
 
-int check_pacfiles(const char *file) /* {{{ */
+pacfiles_t check_pacfiles(const char *file) /* {{{ */
 {
 	char path[PATH_MAX];
 	int ret = 0;
@@ -161,7 +162,7 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 		}
 
 		/* check if there is a pacnew/pacsave/pacorig file */
-		int pacfiles = check_pacfiles(path);
+		pacfiles_t pacfiles = check_pacfiles(path);
 		if (pacfiles & CONF_PACNEW)
 			cwr_fprintf(stderr, LOG_WARN, "pacnew file detected %s\n", path);
 		if (pacfiles & CONF_PACSAVE)
