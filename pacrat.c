@@ -335,22 +335,7 @@ int main(int argc, char *argv[])
 		goto finish;
 	}
 
-	return run(cmd, --argc, ++argv);
-
-	/* if (cfg.opmask & OP_LIST) { */
-	/* 	alpm_list_t *backups = alpm_all_backups(cfg.all), *i; */
-	/* 	for (i = backups; i; i = i->next) */
-	/* 		print_status(i->data); */
-	/* 		; */
-	/* 	alpm_list_free_inner(backups, free_backup); */
-	/* 	alpm_list_free(backups); */
-	/* } else if (cfg.opmask & OP_PULL) { */
-	/* 	alpm_list_t *backups = alpm_all_backups(cfg.all), *i; */
-	/* 	for (i = backups; i; i = i->next) */
-	/* 		archive(i->data); */
-	/* 	alpm_list_free_inner(backups, free_backup); */
-	/* 	alpm_list_free(backups); */
-	/* } */
+	ret = run(cmd, --argc, ++argv);
 
 finish:
 	alpm_release(pmhandle);
