@@ -11,9 +11,9 @@
 #include <alpm.h>
 #include "config.h"
 
-typedef int (*cmdhandler)(int argc, char **argv);
+typedef int (*cmdhandler)(int argc, char *argv[]);
 
-typedef struct __command_t {
+typedef struct command_t {
 	const char *command;
 	cmdhandler handler;
 	const char *usage;
@@ -32,24 +32,11 @@ enum {
 	CONF_PACORIG = (1 << 2)
 };
 
-static int check_pacfiles(const char *);
-
-static const command_t *find(const char *name)
-{
-	for (unsigned i = 0; pacrat_cmds[i].command != NULL; ++i) {
-		if (STREQ(name, pacrat_cmds[i].command))
-			return &pacrat_cmds[i];
-	}
-	return NULL;
-}
-
-static int run(const command_t *cmd, int argc, char *argv[])
-{
-	int ret = cmd->handler(argc, argv);
-	return (ret >= 0) ? EXIT_SUCCESS : EXIT_FAILURE;
-}
-
 alpm_handle_t *pmhandle;
+
+static int check_pacfiles(const char *);
+static const command_t *find(const char *);
+static int run(const command_t *, int, char *[]);
 
 int cwr_fprintf(FILE *stream, loglevel_t level, const char *format, ...) /* {{{ */
 {
@@ -108,6 +95,21 @@ int cwr_vfprintf(FILE *stream, loglevel_t level, const char *format, va_list arg
 	return vfprintf(stream, bufout, args);
 } /* }}} */
 
+void file_init(file_t *file, const char *path, char *hash) /* {{{ */
+{
+	file->hash = hash ? hash : get_hash(path);
+	file->path = strdup(path);
+} /* }}} */
+
+void backup_free(void *ptr) { /* {{{ */
+	backup_t *backup = ptr;
+	free(backup->system.path);
+	free(backup->system.hash);
+	free(backup->local.path);
+	free(backup->local.hash);
+	free(backup);
+} /* }}} */
+
 char *get_hash(const char *path) /* {{{ */
 {
 	char *hash = alpm_compute_md5sum(path);
@@ -116,12 +118,6 @@ char *get_hash(const char *path) /* {{{ */
 		exit(EXIT_FAILURE);
 	}
 	return hash;
-} /* }}} */
-
-void file_init(file_t *file, const char *path, char *hash) /* {{{ */
-{
-	file->hash = hash ? hash : get_hash(path);
-	file->path = strdup(path);
 } /* }}} */
 
 int check_pacfiles(const char *file) /* {{{ */
@@ -221,13 +217,19 @@ alpm_list_t *alpm_all_backups(int everything) /* {{{ */
 	return backups;
 } /* }}} */
 
-void free_backup(void *ptr) { /* {{{ */
-	backup_t *backup = ptr;
-	free(backup->system.path);
-	free(backup->system.hash);
-	free(backup->local.path);
-	free(backup->local.hash);
-	free(backup);
+const command_t *find(const char *name) /* {{{ */
+{
+	for (unsigned i = 0; pacrat_cmds[i].command != NULL; ++i) {
+		if (STREQ(name, pacrat_cmds[i].command))
+			return &pacrat_cmds[i];
+	}
+	return NULL;
+} /* }}} */
+
+int run(const command_t *cmd, int argc, char *argv[]) /* {{{ */
+{
+	int ret = cmd->handler(argc, argv);
+	return (ret >= 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 } /* }}} */
 
 int main(int argc, char *argv[])

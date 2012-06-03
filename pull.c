@@ -86,7 +86,7 @@ int cmd_pull(int argc, char **argv)
 	for (i = backups; i; i = i->next)
 		archive(i->data);
 
-	alpm_list_free_inner(backups, free_backup);
+	alpm_list_free_inner(backups, backup_free);
 	alpm_list_free(backups);
 
 	return 0;

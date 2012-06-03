@@ -13,7 +13,7 @@
 	#define PACMAN_DBPATH "/var/lib/pacman"
 #endif
 
-typedef enum __loglevel_t {
+typedef enum loglevel_t {
 	LOG_INFO    = 1,
 	LOG_ERROR   = (1 << 1),
 	LOG_WARN    = (1 << 2),
@@ -22,12 +22,12 @@ typedef enum __loglevel_t {
 	LOG_BRIEF   = (1 << 5)
 } loglevel_t;
 
-typedef struct __file_t {
+typedef struct file_t {
 	char *path;
 	char *hash;
 } file_t;
 
-typedef struct __backup_t {
+typedef struct backup_t {
 	const char *pkgname;
 	file_t system;
 	file_t local;
@@ -38,15 +38,14 @@ int cwr_fprintf(FILE *, loglevel_t, const char *, ...) __attribute__((format(pri
 int cwr_printf(loglevel_t, const char *, ...) __attribute__((format(printf,2,3)));
 int cwr_vfprintf(FILE *, loglevel_t, const char *, va_list) __attribute__((format(printf,3,0)));
 
-char *get_hash(const char *);
 void file_init(file_t *, const char *, char *);
+void backup_free(void *);
 
+char *get_hash(const char *);
 alpm_list_t *alpm_find_backups(alpm_pkg_t *, int);
 alpm_list_t *alpm_all_backups(int);
 
-void free_backup(void *);
-
-int cmd_status(int argc, char **argv);
-int cmd_pull(int argc, char **argv);
+int cmd_status(int, char *[]);
+int cmd_pull(int, char *[]);
 
 #endif
