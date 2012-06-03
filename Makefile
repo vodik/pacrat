@@ -1,18 +1,18 @@
 # pacrat - pacman config manager
 
-OUT = pacrat
-VERSION = $(shell git describe)
+OUT=pacrat
+VERSION=$(shell git describe)
 
-SRC = ${wildcard *.c}
-OBJ = ${SRC:.c=.o}
-DISTFILES = Makefile pacrat.c
+SRC=${wildcard *.c}
+OBJ=${SRC:.c=.o}
+DISTFILES=Makefile pacrat.c
 
-PREFIX ?= /usr/local
-MANPREFIX ?= ${PREFIX}/share/man
+PREFIX?=/usr/local
+MANPREFIX?=${PREFIX}/share/man
 
-CPPFLAGS := -DPACRAT_VERSION=\"${VERSION}\" ${CPPFLAGS}
-CFLAGS := -std=c99 -g -pedantic -Wall -Wextra ${CFLAGS} -g
-LDFLAGS := -lcurl -lalpm ${LDFLAGS}
+CPPFLAGS:=-DPACRAT_VERSION=\"${VERSION}\" ${CPPFLAGS}
+CFLAGS:=-std=gnu99 -g -pedantic -Wall -Wextra ${CFLAGS} -g
+LDFLAGS:=-lcurl -lalpm ${LDFLAGS}
 
 all: ${OUT} doc
 
