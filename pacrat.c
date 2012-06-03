@@ -90,7 +90,7 @@ static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const backup_t *);
 static int is_modified(const char *, const alpm_backup_t *);
-static int find_backupfiles(const char *);
+static int check_pacfiles(const char *);
 static alpm_list_t *alpm_find_backups(alpm_pkg_t *, int);
 static alpm_list_t *alpm_all_backups(int);
 static alpm_list_t *stored_backups(alpm_pkg_t *pkg, char *dir);
@@ -253,7 +253,7 @@ int is_modified(const char *path, const alpm_backup_t *backup) /* {{{ */
 	return ret;
 } /* }}} */
 
-int find_backupfiles(const char *file) /* {{{ */
+int check_pacfiles(const char *file) /* {{{ */
 {
 	char path[PATH_MAX];
 	int ret = 0;
@@ -293,12 +293,12 @@ alpm_list_t *alpm_find_backups(alpm_pkg_t *pkg, int everything) /* {{{ */
 		}
 
 		/* check if there is a pacnew/pacsave/pacorig file */
-		int temp = find_backupfiles(path);
-		if (temp & CONF_PACNEW)
+		int pacfiles = check_pacfiles(path);
+		if (pacfiles & CONF_PACNEW)
 			cwr_fprintf(stderr, LOG_WARN, "pacnew file detected %s\n", path);
-		if (temp & CONF_PACSAVE)
+		if (pacfiles & CONF_PACSAVE)
 			cwr_fprintf(stderr, LOG_WARN, "pacsave file detected %s\n", path);
-		if (temp & CONF_PACORIG)
+		if (pacfiles & CONF_PACORIG)
 			cwr_fprintf(stderr, LOG_WARN, "pacorig file detected %s\n", path);
 
 		/* filter unmodified files */
