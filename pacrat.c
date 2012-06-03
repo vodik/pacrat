@@ -262,11 +262,15 @@ int main(int argc, char *argv[])
 		goto finish;
 	}
 
-	repo_open();
+	if ((ret = repo_open()) != 0) {
+		cwr_fprintf(stderr, LOG_ERROR, "repo_open failed\n");
+		goto finish;
+	}
 
 	ret = run(cmd, --argc, ++argv);
 
 finish:
+	cwr_fprintf(stderr, LOG_DEBUG, "releasing alpm\n");
 	alpm_release(pmhandle);
 	return ret;
 }
