@@ -1,12 +1,16 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef OPTIONS_H
+#define OPTIONS_H
 
 #include <alpm.h>
-#include "pacrat.h"
 
-enum {
-	OP_DEBUG = 1000
-};
+typedef enum loglevel_t {
+	LOG_INFO    = 1,
+	LOG_ERROR   = (1 << 1),
+	LOG_WARN    = (1 << 2),
+	LOG_DEBUG   = (1 << 3),
+	LOG_VERBOSE = (1 << 4),
+	LOG_BRIEF   = (1 << 5)
+} loglevel_t;
 
 /* runtime configuration */
 typedef struct {
@@ -17,6 +21,10 @@ typedef struct {
 
 	alpm_list_t *targets;
 } options_t;
+
+enum {
+	OP_DEBUG = 1000
+};
 
 typedef struct {
 	const char *error;

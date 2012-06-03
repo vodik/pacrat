@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "config.h"
 
 static void print_status(backup_t *);
 

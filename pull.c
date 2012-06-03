@@ -7,8 +7,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include "config.h"
-
 static void copy(const char *, const char *);
 static void mkpath(const char *, mode_t);
 static void archive(const backup_t *);

@@ -9,7 +9,6 @@
 #include <sys/stat.h>
 
 #include <alpm.h>
-#include "config.h"
 
 typedef int (*cmdhandler)(int argc, char *argv[]);
 

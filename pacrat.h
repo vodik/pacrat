@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <alpm.h>
+#include "options.h"
 
 #define STREQ(x,y) (strcmp((x),(y)) == 0)
 
@@ -12,15 +13,6 @@
 #ifndef PACMAN_DB
 	#define PACMAN_DBPATH "/var/lib/pacman"
 #endif
-
-typedef enum loglevel_t {
-	LOG_INFO    = 1,
-	LOG_ERROR   = (1 << 1),
-	LOG_WARN    = (1 << 2),
-	LOG_DEBUG   = (1 << 3),
-	LOG_VERBOSE = (1 << 4),
-	LOG_BRIEF   = (1 << 5)
-} loglevel_t;
 
 typedef struct file_t {
 	char *path;

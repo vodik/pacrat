@@ -1,4 +1,4 @@
-#include "config.h"
+#include "options.h"
 
 #include "pacrat.h"
 #include <stdio.h>
