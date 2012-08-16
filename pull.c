@@ -1,5 +1,5 @@
 #define _GNU_SOURCE
-#include "actions.h"
+#include "pacrat.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -12,8 +12,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
 #include <alpm.h>
-#include "pacrat.h"
 
 #define OPEN(fd, path, flags) do { fd = open(path, flags); } while(fd == -1 && errno == EINTR)
 #define CLOSE(fd) do { int _ret; do { _ret = close(fd); } while(_ret == -1 && errno == EINTR); } while(0)
@@ -130,7 +130,7 @@ static int mkdir_parents(const char *path, mode_t mode) {
     return 0;
 }
 
-static int action(alpm_list_t *modified)
+static int pull(alpm_list_t *modified)
 {
     const alpm_list_t *i;
 
@@ -171,10 +171,11 @@ static int action(alpm_list_t *modified)
     return 0;
 }
 
-const action_t pull_action = {
+const struct action_t pull_action = {
+    .name     = "pull",
     .parsearg = parsearg,
-    .action   = action,
-    .usage    = usage,
+    .cmd      = pull,
+    .usage    = usage
 };
 
 // vim: et:sts=4:sw=4:cino=(0

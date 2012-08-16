@@ -3,8 +3,18 @@
 
 #define PACMAN_ROOT "/"
 
+#include <stdio.h>
+#include <alpm.h>
+
 typedef struct file_t file_t;
 typedef struct backup_t backup_t;
+
+struct action_t {
+    const char *name;
+    void (*parsearg)(char);
+    void (*usage)(FILE *);
+    int (*cmd)(alpm_list_t *);
+};
 
 struct file_t {
     char *path;
@@ -18,10 +28,7 @@ struct backup_t {
     const char *hash;
 };
 
-void backup_free(void *ptr);
-
-alpm_list_t *find_all_modified(alpm_db_t *db);
-int copy_modified_to_repo(alpm_list_t *modified, const char *basedir);
+extern const struct action_t list_action;
 
 #endif
 

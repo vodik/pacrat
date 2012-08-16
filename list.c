@@ -1,18 +1,17 @@
 #define _GNU_SOURCE
-#include "actions.h"
+#include "pacrat.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <alpm.h>
-#include "pacrat.h"
 
 static void usage(FILE *out)
 {
     fprintf(out, "usage: %s list [options] <command>...\n", program_invocation_short_name);
 }
 
-static int action(alpm_list_t *modified)
+static int list(alpm_list_t *modified)
 {
     const alpm_list_t *i;
     for (i = modified; i; i = i->next) {
@@ -23,10 +22,11 @@ static int action(alpm_list_t *modified)
     return 0;
 }
 
-const action_t list_action = {
+const struct action_t list_action = {
+    .name     = "list",
     .parsearg = NULL,
-    .action   = action,
-    .usage    = usage,
+    .cmd      = list,
+    .usage    = usage
 };
 
 // vim: et:sts=4:sw=4:cino=(0
